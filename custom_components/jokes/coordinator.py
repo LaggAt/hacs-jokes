@@ -70,7 +70,7 @@ class JokeUpdateCoordinator(DataUpdateCoordinator):
             name=f"{DOMAIN} ({self.uid})",
             update_interval=self.update_interval,
             update_method=self._async_update_data,
-        )60
+        )
 
 
     async def _async_update_data(self):
