@@ -1,14 +1,18 @@
 # Jokes integration
 
-This is the simplest but somewhat useful and funny integration I could think of. It even doesn't use a single entity, just one state returning a string.
+This is the simplest but somewhat useful and funny integration I could think of. 
 
-Every Minute, a sensor provides a joke. Done.
+A sensor provides a joke at a configurable time. Max joke length can also be configured.
 
 ## Shoutout/Kudos
 
 * https://icanhazdadjoke.com/
 
 Thanks for providing the 'Random dad joke' API. They also offer Discord, Alexa and many more integrations :) Really great and fun project.
+
+* https://github.com/msp1974/HAIntegrationExamples
+
+For tips on how to structure config flows and device info
 
 * Logo used for this integration 
 
