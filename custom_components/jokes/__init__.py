@@ -1,87 +1,129 @@
 """Provides random jokes."""
-
-from .const import DOMAIN
-import aiohttp
-import asyncio
 from datetime import timedelta
+import logging
+import asyncio
+import aiohttp
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.const import Platform
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-import logging
+
+from .const import (
+    CONF_UPDATE_INTERVAL,
+    CONF_DEVICENAME,
+    CONF_NAME,
+    CONF_NUM_TRIES,
+    CONF_JOKE_LENGTH,
+    DOMAIN,
+    DEFAULT_NAME,
+    DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_JOKE_LENGTH,
+    DEFAULT_DEVICENAME,
+    DEFAULT_RETRIES,
+)
+from .coordinator import JokeUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# def set_joke(hass: HomeAssistant, text: str):
-#     """Helper function to set the random joke."""
-#     _LOGGER.debug("set_joke")
-#     hass.states.async_set("jokes.random_joke", text)
-
-def setup(hass: HomeAssistant, config: dict):
-    """This setup does nothing, we use the async setup."""
-    _LOGGER.debug("setup")
-    return True
-
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Setup from configuration.yaml."""
-    _LOGGER.debug("async_setup")
-    
-    #`config` is the full dict from `configuration.yaml`.
-    #set_joke(hass, "")
-
-    return True
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Setup from Config Flow Result."""
     _LOGGER.debug("async_setup_entry")
-    
+
+    hass.data.setdefault(DOMAIN, {})
+
     coordinator = JokeUpdateCoordinator(
         hass,
-        _LOGGER,
-        update_interval=timedelta(seconds=60)
+        config_entry
     )
-    await coordinator.async_refresh()
-    
-    hass.data[DOMAIN] = {
-        "coordinator": coordinator
+
+    # Perform initial data load from API
+    await coordinator.async_config_entry_first_refresh()
+
+    if not coordinator.api_connected:
+        raise ConfigEntryNotReady
+
+    # Add listener to enable reconfiguration
+    update_listener = config_entry.add_update_listener(_async_update_listener)
+
+    hass.data[DOMAIN][config_entry.entry_id] = {
+        "coordinator": coordinator,
+        "update_listener": update_listener,
     }
-    
-    hass.async_create_task(async_load_platform(hass, "sensor", DOMAIN, {}, entry))
+
+    # Setup platforms
+    await hass.config_entries.async_forward_entry_setups(config_entry, [Platform.SENSOR])
+
     return True
 
-class JokeUpdateCoordinator(DataUpdateCoordinator):
-    """Update handler."""
 
-    def __init__(self, hass, logger, update_interval=None):
-        """Initialize global data updater."""
-        logger.debug("__init__")
+async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(config_entry.entry_id)
 
-        super().__init__(
-            hass,
-            logger,
-            name=DOMAIN,
-            update_interval=update_interval,
-            update_method=self._async_update_data,
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    # From home assistant developer documentation
+    _LOGGER.debug("Migrating configuration from version %s.%s",
+                  config_entry.version,
+                  config_entry.minor_version
+                  )
+
+    if config_entry.version > 1:
+        # This means the user has downgraded from a future version
+        return False
+
+    if config_entry.version == 1:
+        new_data = {**config_entry.data}
+        if config_entry.minor_version < 1:
+            new_data[CONF_NAME] = DEFAULT_NAME
+            new_data[CONF_UPDATE_INTERVAL] = DEFAULT_UPDATE_INTERVAL
+            new_data[CONF_JOKE_LENGTH] = DEFAULT_JOKE_LENGTH
+
+        if config_entry.minor_version < 3:
+            new_data[CONF_DEVICENAME] = DEFAULT_DEVICENAME
+            new_data[CONF_NUM_TRIES] = DEFAULT_RETRIES
+
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data=new_data,
+            minor_version=3,
+            version=1
         )
-        
-    async def _async_update_data(self):
-        """Fetch a random joke."""
-        self.logger.debug("_async_update_data")
-        
-        #get a random joke (finally)
-        try:
-            headers = {
-                'Accept': 'application/json',
-                'User-Agent': 'Jokes custom integration for Home Assistant (https://github.com/LaggAt/ha-jokes)'
-            }
-            async with aiohttp.ClientSession() as session:
-                async with session.get('https://icanhazdadjoke.com/', headers=headers) as resp:
-                    if resp.status == 200:
-                        json = await resp.json()
-                        #set_joke(self._hass, json["joke"])
-                        # return the joke object
-                        return json
-                    else:
-                        raise UpdateFailed(f"Response status code: {resp.status}")
-        except Exception as ex:
-            raise UpdateFailed from ex
+
+    _LOGGER.debug("Migration to configuration version %s.%s successful",
+                  config_entry.version,
+                  config_entry.minor_version)
+
+    return True
+
+
+async def async_remove_config_entry_device(
+    _hass: HomeAssistant, _config_entry: ConfigEntry, _device_entry: DeviceEntry
+) -> bool:
+    """Delete device if selected from UI."""
+    # Adding this function shows the delete device option in the UI.
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    # This is called when you remove your integration or shutdown HA.
+
+    # Remove the config options update listener
+    hass.data[DOMAIN][config_entry.entry_id]["update_listener"]()
+
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, Platform.SENSOR
+    )
+
+    # Remove the config entry from the hass data object.
+    if unload_ok:
+        hass.data[DOMAIN].pop(config_entry.entry_id)
+
+    return unload_ok

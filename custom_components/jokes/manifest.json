@@ -2,7 +2,7 @@
   "codeowners": ["@LaggAt"],
   "domain": "jokes",
   "name": "Jokes",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "config_flow": true,
   "documentation": "https://github.com/LaggAt/ha-jokes/blob/master/README.md",
   "issue_tracker": "https://github.com/LaggAt/ha-jokes/issues",

@@ -2,7 +2,7 @@
 ![Project Maintenance][maintenance-shield]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
-_Example Component providing fresh jokes every minute._
+_Example Component providing fresh jokes at a configurable interval._
 
 **This component will set up the following platforms.**
 
@@ -20,9 +20,9 @@ Platform | Description
 
 {% endif %}
 
-## No Configuration
+## Configuration
 
-Works out of the box.
+Works out of the box with default values, and the Update interval can be changed from the config flow.
 
 ## Sponsor
 

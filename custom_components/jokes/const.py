@@ -1,3 +1,20 @@
 """Jokes constants."""
 
 DOMAIN = "jokes"
+
+DEFAULT_UPDATE_INTERVAL = 60
+DEFAULT_JOKE_LENGTH = 255
+DEFAULT_NAME = "Random Joke"
+DEFAULT_DEVICENAME = "random_joke"
+DEFAULT_RETRIES = 10
+
+MIN_UPDATE_INTERVAL = 15
+MIN_RETRIES = 1
+
+MAX_STATE_JOKE_LENGTH = 255
+
+CONF_UPDATE_INTERVAL = "Update interval"
+CONF_DEVICENAME = "Device base name"
+CONF_NAME = "Name"
+CONF_NUM_TRIES = "Number of retries"
+CONF_JOKE_LENGTH = "Joke max length"
